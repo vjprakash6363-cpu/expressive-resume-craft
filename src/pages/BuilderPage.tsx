@@ -20,7 +20,7 @@ const SECTIONS = [
   { id: "projects", label: "Projects", icon: FolderGit2 },
 ];
 
-const FONTS = ["Inter", "Georgia", "Arial", "Merriweather", "Roboto", "Lato", "Playfair Display"];
+const FONTS = ["Inter", "Georgia", "Merriweather", "Roboto", "Lato", "Playfair Display", "Montserrat", "Open Sans", "Raleway"];
 const ACCENT_COLORS = ["#7C3AED", "#0EA5E9", "#F97316", "#10B981", "#EC4899", "#EF4444", "#F59E0B", "#3B82F6", "#06B6D4", "#8B5CF6"];
 
 export default function BuilderPage() {
@@ -181,8 +181,45 @@ export default function BuilderPage() {
     setTimeout(() => setSaveStatus("idle"), 2500);
   };
 
-  const handleExportPDF = () => {
-    window.print();
+  const handleExportPDF = async () => {
+    const element = document.getElementById("resume-preview");
+    if (!element) return;
+    
+    try {
+      const html2canvas = (await import("html2canvas")).default;
+      const { jsPDF } = await import("jspdf");
+      
+      const canvas = await html2canvas(element, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: "#ffffff",
+      });
+      
+      const imgWidth = 210; // A4 mm
+      const pageHeight = 297;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      const imgData = canvas.toDataURL("image/png");
+      
+      const pdf = new jsPDF("p", "mm", "a4");
+      let heightLeft = imgHeight;
+      let position = 0;
+      
+      pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+      
+      while (heightLeft > 0) {
+        position = heightLeft - imgHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
+      }
+      
+      const fileName = `${resumeData.personalInfo.fullName?.replace(/\s+/g, "_") || "resume"}.pdf`;
+      pdf.save(fileName);
+    } catch (err) {
+      console.error("PDF export failed:", err);
+    }
   };
 
   const scoreColor = (score: number) => {
@@ -316,8 +353,8 @@ export default function BuilderPage() {
       </AnimatePresence>
 
       <div className="flex flex-1 overflow-hidden">
-        {/* Sidebar nav */}
-        <div className="w-14 border-r border-border/40 glass flex flex-col items-center py-3 gap-1 flex-shrink-0">
+        {/* Sidebar nav - hidden on small mobile, shown as bottom bar */}
+        <div className="hidden sm:flex w-14 border-r border-border/40 glass flex-col items-center py-3 gap-1 flex-shrink-0">
           {SECTIONS.map(s => (
             <button
               key={s.id}
@@ -334,8 +371,24 @@ export default function BuilderPage() {
           ))}
         </div>
 
+        {/* Mobile section tabs */}
+        <div className="sm:hidden fixed bottom-0 left-0 right-0 z-40 glass border-t border-border/40 flex items-center justify-around py-2 px-1">
+          {SECTIONS.map(s => (
+            <button
+              key={s.id}
+              onClick={() => setActiveSection(s.id)}
+              className={`flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg transition-all ${
+                activeSection === s.id ? "text-primary" : "text-muted-foreground"
+              }`}
+            >
+              <s.icon className="w-4 h-4" />
+              <span className="text-[8px] font-medium">{s.label.split(" ")[0]}</span>
+            </button>
+          ))}
+        </div>
+
         {/* Editor panel */}
-        <div className={`flex-1 overflow-y-auto p-4 ${showPreview ? "max-w-lg" : "flex-1"}`}>
+        <div className={`flex-1 overflow-y-auto p-3 sm:p-4 pb-20 sm:pb-4 ${showPreview ? "md:max-w-lg" : "flex-1"}`}>
           <div className="max-w-lg mx-auto space-y-4">
             {/* Personal Info */}
             {activeSection === "personal" && (
@@ -760,9 +813,9 @@ export default function BuilderPage() {
           </div>
         </div>
 
-        {/* Live Preview */}
+        {/* Live Preview - Desktop */}
         {showPreview && (
-          <div className="hidden md:flex flex-1 flex-col bg-muted/20 border-l border-border/40">
+          <div className="hidden md:flex flex-1 flex-col bg-muted/20 border-l border-border/40 min-w-0">
             <div className="h-10 flex items-center justify-between px-4 border-b border-border/30">
               <span className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
                 <Eye className="w-3.5 h-3.5" /> Live Preview
@@ -776,6 +829,30 @@ export default function BuilderPage() {
             </div>
           </div>
         )}
+
+        {/* Live Preview - Mobile fullscreen overlay */}
+        <AnimatePresence>
+          {showPreview && (
+            <motion.div
+              initial={{ opacity: 0, y: "100%" }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: "100%" }}
+              className="md:hidden fixed inset-0 z-50 bg-background flex flex-col"
+            >
+              <div className="h-12 flex items-center justify-between px-4 border-b border-border/30 glass">
+                <span className="text-sm font-medium text-foreground">Preview</span>
+                <button onClick={() => setShowPreview(false)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary/20 text-primary text-xs font-medium">
+                  <X className="w-3.5 h-3.5" /> Close
+                </button>
+              </div>
+              <div className="flex-1 overflow-auto p-3 bg-muted/20">
+                <div className="mx-auto origin-top-center" style={{ transform: "scale(0.48)", transformOrigin: "top center", width: "210mm" }}>
+                  <ResumePreview data={resumeData} />
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* ATS Panel */}
         <AnimatePresence>
