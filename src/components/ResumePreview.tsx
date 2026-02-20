@@ -733,8 +733,14 @@ export default function ResumePreview({ data }: ResumePreviewProps) {
   return (
     <div
       id="resume-preview"
-      className="resume-preview bg-white w-full min-h-[1056px] text-[#1a1a2e] shadow-2xl"
-      style={{ fontFamily: data.fontFamily || "Inter", fontSize: "11px" }}
+      className="resume-preview bg-white w-[794px] min-h-[1122px] text-[#1a1a2e] shadow-2xl mx-auto origin-top"
+      style={{
+        fontFamily: `'${data.fontFamily || "Inter"}', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif`,
+        fontSize: "11px",
+        lineHeight: "1.5",
+        WebkitFontSmoothing: "antialiased",
+        MozOsxFontSmoothing: "grayscale",
+      }}
     >
       {renderLayout()}
     </div>

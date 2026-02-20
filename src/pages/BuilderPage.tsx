@@ -182,39 +182,62 @@ export default function BuilderPage() {
   };
 
   const handleExportPDF = async () => {
-    const element = document.getElementById("resume-preview");
-    if (!element) return;
-    
     try {
       const html2canvas = (await import("html2canvas")).default;
       const { jsPDF } = await import("jspdf");
-      
-      const canvas = await html2canvas(element, {
-        scale: 2,
+
+      // Wait for all fonts to be fully loaded before rendering
+      await document.fonts.ready;
+
+      // Create an offscreen clone at exact A4 pixel dimensions for high-quality capture
+      const source = document.getElementById("resume-preview");
+      if (!source) return;
+
+      const A4_WIDTH_PX = 794; // 210mm at 96dpi
+      const clone = source.cloneNode(true) as HTMLElement;
+      clone.style.position = "absolute";
+      clone.style.left = "-9999px";
+      clone.style.top = "0";
+      clone.style.width = `${A4_WIDTH_PX}px`;
+      clone.style.minHeight = "1122px"; // 297mm at 96dpi
+      clone.style.transform = "none";
+      clone.style.overflow = "visible";
+      clone.style.backgroundColor = "#ffffff";
+      document.body.appendChild(clone);
+
+      // Small delay to let styles and fonts apply to the clone
+      await new Promise(r => setTimeout(r, 300));
+
+      const canvas = await html2canvas(clone, {
+        scale: 3, // 3x for crisp text
         useCORS: true,
         logging: false,
         backgroundColor: "#ffffff",
+        width: A4_WIDTH_PX,
+        windowWidth: A4_WIDTH_PX,
       });
-      
+
+      document.body.removeChild(clone);
+
       const imgWidth = 210; // A4 mm
       const pageHeight = 297;
       const imgHeight = (canvas.height * imgWidth) / canvas.width;
-      const imgData = canvas.toDataURL("image/png");
-      
+      const imgData = canvas.toDataURL("image/jpeg", 0.98);
+
       const pdf = new jsPDF("p", "mm", "a4");
       let heightLeft = imgHeight;
       let position = 0;
-      
-      pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+
+      pdf.addImage(imgData, "JPEG", 0, position, imgWidth, imgHeight);
       heightLeft -= pageHeight;
-      
+
       while (heightLeft > 0) {
-        position = heightLeft - imgHeight;
+        position -= pageHeight;
         pdf.addPage();
-        pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+        pdf.addImage(imgData, "JPEG", 0, position, imgWidth, imgHeight);
         heightLeft -= pageHeight;
       }
-      
+
       const fileName = `${resumeData.personalInfo.fullName?.replace(/\s+/g, "_") || "resume"}.pdf`;
       pdf.save(fileName);
     } catch (err) {
@@ -823,7 +846,7 @@ export default function BuilderPage() {
               <span className="text-xs text-muted-foreground">A4 Format</span>
             </div>
             <div className="flex-1 overflow-auto p-4">
-              <div className="w-full max-w-[600px] mx-auto origin-top-left" style={{ transform: "scale(0.72)", transformOrigin: "top center" }}>
+              <div className="mx-auto" style={{ width: "794px", transform: "scale(0.65)", transformOrigin: "top center" }}>
                 <ResumePreview data={resumeData} />
               </div>
             </div>
@@ -846,7 +869,7 @@ export default function BuilderPage() {
                 </button>
               </div>
               <div className="flex-1 overflow-auto p-3 bg-muted/20">
-                <div className="mx-auto origin-top-center" style={{ transform: "scale(0.48)", transformOrigin: "top center", width: "210mm" }}>
+                <div className="mx-auto" style={{ width: "794px", transform: "scale(0.42)", transformOrigin: "top center" }}>
                   <ResumePreview data={resumeData} />
                 </div>
               </div>
